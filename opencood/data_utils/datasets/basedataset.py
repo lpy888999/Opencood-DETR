@@ -116,7 +116,7 @@ class BaseDataset(Dataset):
             self.max_cav = params['train_params']['max_cav']
 
         # first load all paths of different scenarios
-        scenario_folders = sorted([os.path.join(root_dir, x)
+        scenario_folders = sorted([os.path.join(root_dir, x).replace('\\', '/')
                                    for x in os.listdir(root_dir) if
                                    os.path.isdir(os.path.join(root_dir, x))])
         # Structure: {scenario_id : {cav_1 : {timestamp1 : {yaml: path,
@@ -126,12 +126,12 @@ class BaseDataset(Dataset):
 
         # loop over all scenarios
         for (i, scenario_folder) in enumerate(scenario_folders):
-            self.scenario_database.update({i: OrderedDict()})
+            self.scenario_database.update({i: OrderedDict()})     # 将所有数据构建一个database
 
             # at least 1 cav should show up
             cav_list = sorted([x for x in os.listdir(scenario_folder)
                                if os.path.isdir(
-                    os.path.join(scenario_folder, x))])
+                    os.path.join(scenario_folder, x).replace('\\', '/'))])
             assert len(cav_list) > 0
 
             # roadside unit data's id is always negative, so here we want to
@@ -152,11 +152,10 @@ class BaseDataset(Dataset):
 
                 # use the frame number as key, the full path as the values
                 yaml_files = \
-                    sorted([os.path.join(cav_path, x)
+                    sorted([os.path.join(cav_path, x).replace('\\', '/')
                             for x in os.listdir(cav_path) if
                             x.endswith('.yaml') and 'additional' not in x])
                 timestamps = self.extract_timestamps(yaml_files)
-
                 for timestamp in timestamps:
                     self.scenario_database[i][cav_id][timestamp] = \
                         OrderedDict()

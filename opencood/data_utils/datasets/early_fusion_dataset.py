@@ -120,7 +120,7 @@ class EarlyFusionDataset(basedataset.BaseDataset):
         unique_indices = list(np.array(unique_indices)[range_mask])
 
         # pre-process the lidar to voxel/bev/downsampled lidar
-        lidar_dict = self.pre_processor.preprocess(projected_lidar_stack)
+        lidar_dict = self.pre_processor.preprocess(projected_lidar_stack)  #在这里预处理
 
         # generate the anchor boxes
         anchor_box = self.post_processor.generate_anchor_box()

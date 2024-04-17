@@ -14,7 +14,7 @@ from opencood.utils.transformation_utils import dist_to_continuous
 from opencood.data_utils.post_processor.base_postprocessor \
     import BasePostprocessor
 from opencood.utils import box_utils
-from opencood.visualization import vis_utils
+# from opencood.visualization import vis_utils
 
 
 class BevPostprocessor(BasePostprocessor):
@@ -54,9 +54,9 @@ class BevPostprocessor(BasePostprocessor):
         masks = kwargs['mask']
 
         # (n, 7)
-        gt_box_center_valid = gt_box_center[masks == 1]
+        gt_box_center_valid = gt_box_center[masks == 1]      # 根据掩码，从所有真实框中筛选出有效的真实框
         # (n, 4, 3)
-        bev_corners = box_utils.boxes_to_corners2d(gt_box_center_valid,
+        bev_corners = box_utils.boxes_to_corners2d(gt_box_center_valid,    #有效的真实框转换成 BEV（Bird's Eye View）中的四个角点的坐标
                                                    self.params['order'])
 
         n = gt_box_center_valid.shape[0]
@@ -66,17 +66,27 @@ class BevPostprocessor(BasePostprocessor):
         x, y = gt_box_center_valid[:, 0], gt_box_center_valid[:, 1]
         dx, dy = gt_box_center_valid[:, 3], gt_box_center_valid[:, 4]
         # (n, 6)
-        reg_targets = np.column_stack([np.cos(yaw), np.sin(yaw), x, y, dx, dy])
+        reg_targets = np.column_stack([np.cos(yaw), np.sin(yaw), x, y, dx, dy])  # 回归目标（regression targets）。回归目标包括了真实框的位置和方向信息 6 个数
+
+        ########
+        # 创建一个全为1的数组作为标签，表示每个边界框内都存在目标对象
+        labels = np.ones(n, dtype=np.float32)  # 或者使用dtype=np.int32，根据需要
+        ########
 
         # target label map including classification and regression targets
         label_map = np.zeros(self.geometry_param["label_shape"])
-        self.update_label_map(label_map, bev_corners, reg_targets)
+        self.update_label_map(label_map, bev_corners, reg_targets)   # update_label_map
         label_map = self.normalize_targets(label_map)
         label_dict = {
             # (7, label_shape[0], label_shape[1])
-            "label_map": np.transpose(label_map, (2, 0, 1)).astype(np.float32),
-            "bev_corners": bev_corners
+            # "label_map": np.transpose(label_map, (2, 0, 1)).astype(np.float32),  #  形状由 geometry_param["label_shape"] 决定
+            # "bev_corners": bev_corners,
+            "labels" : labels,
+            # 添加回归目标
+            "boxes" : reg_targets,
+
         }
+
         return label_dict
 
     def update_label_map(self, label_map, bev_corners, reg_targets):
@@ -137,7 +147,7 @@ class BevPostprocessor(BasePostprocessor):
             actual_reg_target[:, 4:] = np.log(actual_reg_target[:, 4:])
 
             # update label map
-            label_map[points_in_box[:, 0], points_in_box[:, 1], 0] = 1.0
+            label_map[points_in_box[:, 0], points_in_box[:, 1], 0] = 1.0  #  所以标签只有0，1，  是根据网格标注的
             label_map[points_in_box[:, 0], points_in_box[:, 1], 1:] = \
                 actual_reg_target
 
@@ -205,18 +215,32 @@ class BevPostprocessor(BasePostprocessor):
         processed_batch : dict
             Reformatted labels in torch tensor.
         """
-        label_map_list = [x["label_map"][np.newaxis, ...] for x in
-                          label_batch_list]
+        # label_map_list = [x["label_map"][np.newaxis, ...] for x in
+        #                   label_batch_list]
+        labels_list = [x["labels"] for x in label_batch_list]
+        # print("In bev_post collate_batch")
+        # print(len(labels_list))
+        # print("labels_list")
+        # print(labels_list[0].shape)
+        # print(labels_list[0][0])
+        boxes_list = [x["boxes"] for x in label_batch_list]
+
         processed_batch = {
-            # (batch_size, 7, label_shape[0], label_shape[1])
-            "label_map": torch.from_numpy(np.concatenate(label_map_list,
-                                                         axis=0)),
-            "bev_corners": [torch.from_numpy(x["bev_corners"]) for x in
-                            label_batch_list]
+            # labels
+            "labels": torch.from_numpy(np.concatenate(labels_list, axis=0)),
+            # boxes
+            "boxes": torch.from_numpy(np.concatenate(boxes_list, axis=0))
         }
+        # processed_batch = {
+        #     # (batch_size, 7, label_shape[0], label_shape[1])
+        #     "label_map": torch.from_numpy(np.concatenate(label_map_list,
+        #                                                  axis=0)),
+        #     "bev_corners": [torch.from_numpy(x["bev_corners"]) for x in
+        #                     label_batch_list]
+        # }
         return processed_batch
 
-    def post_process(self, data_dict, output_dict):
+    def post_process(self, data_dict, output_dict): # 核心函数
         """
         Process the outputs of the model to 2D bounding box.
         Step1: convert each cav's output to bounding box format
@@ -283,7 +307,7 @@ class BevPostprocessor(BasePostprocessor):
             return None, None
 
         keep_index = box_utils.nms_rotated(pred_box2ds, pred_scores,
-                                           self.params['nms_thresh'])
+                                           self.params['nms_thresh'])  # nms操作
         if len(keep_index):
             pred_box2ds = pred_box2ds[keep_index]
             pred_scores = pred_scores[keep_index]
@@ -441,9 +465,9 @@ class BevPostprocessor(BasePostprocessor):
             opencood dataset object.
         """
         assert dataset is not None, "dataset argument can't be None"
-        vis_utils.visualize_single_sample_output_bev(pred_box_tensor,
-                                                     gt_tensor,
-                                                     pcd,
-                                                     dataset,
-                                                     show_vis,
-                                                     save_path)
+        # vis_utils.visualize_single_sample_output_bev(pred_box_tensor,
+        #                                              gt_tensor,
+        #                                              pcd,
+        #                                              dataset,
+        #                                              show_vis,
+        #                                              save_path)

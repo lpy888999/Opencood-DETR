@@ -13,7 +13,7 @@ from opencood.models.sub_modules.base_bev_backbone import BaseBEVBackbone
 
 
 class PointPillar(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args: dict):
         super(PointPillar, self).__init__()
 
         # PIllar VFE
@@ -29,9 +29,9 @@ class PointPillar(nn.Module):
         self.reg_head = nn.Conv2d(128 * 3, 7 * args['anchor_num'],
                                   kernel_size=1)
 
-    def forward(self, data_dict):
+    def forward(self, data_dict):  # processed_data['ego']
 
-        voxel_features = data_dict['processed_lidar']['voxel_features']
+        voxel_features = data_dict['processed_lidar']['voxel_features']  # 数据实际上只选data_dict部分
         voxel_coords = data_dict['processed_lidar']['voxel_coords']
         voxel_num_points = data_dict['processed_lidar']['voxel_num_points']
 

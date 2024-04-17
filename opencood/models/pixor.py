@@ -231,7 +231,8 @@ class Header(nn.Module):
         self.bn4 = nn.BatchNorm2d(96)
 
         self.clshead = conv3x3(96, 1, bias=True)
-        self.reghead = conv3x3(96, 6, bias=True)
+        self.reghead = conv3x3(96, 6, bias=True)  # 回归分支的表示是{ cos(θ)，sin(θ)，dx，dy，w，l } 强烈角度约束
+
 
     def forward(self, x):
         x = self.conv1(x)

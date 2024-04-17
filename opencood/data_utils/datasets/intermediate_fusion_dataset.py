@@ -34,14 +34,14 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
             __init__(params, visualize, train)
 
         # if project first, cav's lidar will first be projected to
-        # the ego's coordinate frame. otherwise, the feature will be
+        # the ego's coordinate frame. otherwise, the feature will be  LiDAR点云是否先投影到自车的坐标系
         # projected instead.
         self.proj_first = True
         if 'proj_first' in params['fusion']['args'] and \
             not params['fusion']['args']['proj_first']:
             self.proj_first = False
 
-        # whether there is a time delay between the time that cav project
+        # whether there is a time delay between the time that cav project  考虑时间延迟
         # lidar to ego and the ego receive the delivered feature
         self.cur_ego_pose_flag = True if 'cur_ego_pose_flag' not in \
             params['fusion']['args'] else \
@@ -53,7 +53,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
             params['postprocess'],
             train)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx):  # 获取一个训练样本
         base_data_dict = self.retrieve_base_data(idx,
                                                  cur_ego_pose_flag=self.cur_ego_pose_flag)
 
@@ -82,7 +82,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         object_stack = []
         object_id_stack = []
 
-        # prior knowledge for time delay correction and indicating data type
+        # prior knowledge for time delay correction and indicating data type 相对位置和速度
         # (V2V vs V2i)
         velocity = []
         time_delay = []
@@ -109,7 +109,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
                 ego_lidar_pose)
 
             object_stack.append(selected_cav_processed['object_bbx_center'])
-            object_id_stack += selected_cav_processed['object_ids']
+            object_id_stack += selected_cav_processed['object_ids']  # 这里是id
             processed_features.append(
                 selected_cav_processed['processed_features'])
 
@@ -153,7 +153,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         label_dict = \
             self.post_processor.generate_label(
                 gt_box_center=object_bbx_center,
-                anchors=anchor_box,
+                anchors=anchor_box,   #  anchor参与，但是在bev中是none
                 mask=mask)
 
         # pad dv, dt, infra to max_cav
@@ -165,14 +165,13 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
                                                spatial_correction_matrix),1,1))
         spatial_correction_matrix = np.concatenate([spatial_correction_matrix,
                                                    padding_eye], axis=0)
-
         processed_data_dict['ego'].update(
             {'object_bbx_center': object_bbx_center,
              'object_bbx_mask': mask,
-             'object_ids': [object_id_stack[i] for i in unique_indices],
+             'object_ids': [object_id_stack[i] for i in unique_indices],  # 这里是标签
              'anchor_box': anchor_box,
              'processed_lidar': merged_feature_dict,
-             'label_dict': label_dict,
+             'label_dict': label_dict, # label
              'cav_num': cav_num,
              'velocity': velocity,
              'time_delay': time_delay,
@@ -184,7 +183,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
             processed_data_dict['ego'].update({'origin_lidar':
                 np.vstack(
                     projected_lidar_stack)})
-        return processed_data_dict
+        return processed_data_dict  # 包含不同CAV 数据和特征
 
     def get_item_single_car(self, selected_cav_base, ego_pose):
         """
@@ -218,6 +217,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         lidar_np = shuffle_points(lidar_np)
         # remove points that hit itself
         lidar_np = mask_ego_points(lidar_np)
+
         # project the lidar to ego space
         if self.proj_first:
             lidar_np[:, :3] = \
@@ -226,7 +226,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         lidar_np = mask_points_by_range(lidar_np,
                                         self.params['preprocess'][
                                             'cav_lidar_range'])
-        processed_lidar = self.pre_processor.preprocess(lidar_np)
+        processed_lidar = self.pre_processor.preprocess(lidar_np)  #在这里预处理
 
         # velocity
         velocity = selected_cav_base['params']['ego_speed']
@@ -243,11 +243,11 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         return selected_cav_processed
 
     @staticmethod
-    def merge_features_to_dict(processed_feature_list):
+    def merge_features_to_dict(processed_feature_list):  # 将不同CAV处理后的特征列表合并为一个字典
         """
         Merge the preprocessed features from different cavs to the same
         dictionary.
-
+、
         Parameters
         ----------
         processed_feature_list : list
@@ -273,8 +273,9 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
 
         return merged_feature_dict
 
-    def collate_batch_train(self, batch):
+    def collate_batch_train(self, batch):   # 将一批数据合并为一个批次，以便于模型进行批处理训练或测试
         # Intermediate fusion is different the other two
+
         output_dict = {'ego': {}}
 
         object_bbx_center = []
@@ -306,7 +307,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
             object_bbx_mask.append(ego_dict['object_bbx_mask'])
             object_ids.append(ego_dict['object_ids'])
 
-            processed_lidar_list.append(ego_dict['processed_lidar'])
+            processed_lidar_list.append(ego_dict['processed_lidar'])  #
             record_len.append(ego_dict['cav_num'])
             label_dict_list.append(ego_dict['label_dict'])
             pairwise_t_matrix_list.append(ego_dict['pairwise_t_matrix'])
@@ -319,6 +320,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
 
             if self.visualize:
                 origin_lidar.append(ego_dict['origin_lidar'])
+
         # convert to numpy, (B, max_num, 7)
         object_bbx_center = torch.from_numpy(np.array(object_bbx_center))
         object_bbx_mask = torch.from_numpy(np.array(object_bbx_mask))
@@ -331,7 +333,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
         # [2, 3, 4, ..., M], M <= max_cav
         record_len = torch.from_numpy(np.array(record_len, dtype=int))
         label_torch_dict = \
-            self.post_processor.collate_batch(label_dict_list)
+            self.post_processor.collate_batch(label_dict_list)   # batch data
 
         # (B, max_cav)
         velocity = torch.from_numpy(np.array(velocity))
@@ -362,7 +364,9 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
                 np.array(downsample_lidar_minimum(pcd_np_list=origin_lidar))
             origin_lidar = torch.from_numpy(origin_lidar)
             output_dict['ego'].update({'origin_lidar': origin_lidar})
-
+        # print("output_dict in collate_batch_train")
+        # print(output_dict['ego']['processed_lidar']['bev_input'].shape) #[4, 21, 1600, 400]
+        # print(output_dict['ego']['label_dict']['labels'].shape)
         return output_dict
 
     def collate_batch_test(self, batch):
@@ -384,7 +388,7 @@ class IntermediateFusionDataset(basedataset.BaseDataset):
 
         return output_dict
 
-    def post_process(self, data_dict, output_dict):
+    def post_process(self, data_dict, output_dict) :  #  推理时使用
         """
         Process the outputs of the model to 2D/3D bounding box.
 

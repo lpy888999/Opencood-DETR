@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from opencood.models.fuse_modules.self_attn import ScaledDotProductAttention
 
-def regroup(x, record_len):
+def regroup(x, record_len):  # 拆分出不同车的特征
     cum_sum_len = torch.cumsum(record_len, dim=0)
     split_x = torch.tensor_split(x, cum_sum_len[:-1].cpu())
     return split_x
 
-def normalize_pairwise_tfm(pairwise_t_matrix, H, W, discrete_ratio, downsample_rate=1):
+def normalize_pairwise_tfm(pairwise_t_matrix, H, W, discrete_ratio, downsample_rate=1):  #变换矩阵的归一化
     """
     normalize the pairwise transformation matrix to affine matrix need by torch.nn.functional.affine_grid()
 
@@ -49,14 +49,14 @@ def warp_affine_simple(
     B, C, H, W = src.size()
     grid = F.affine_grid(M, [B, C, dsize[0], dsize[1]],
                          align_corners=align_corners).to(src)
-    return F.grid_sample(src, grid, align_corners=align_corners)
+    return F.grid_sample(src, grid, align_corners=align_corners)  # 特征图的仿射变换，两步
 
 class Att_w_Warp(nn.Module):
     def __init__(self, feature_dims):
         super(Att_w_Warp, self).__init__()
-        self.att = ScaledDotProductAttention(feature_dims)
+        self.att = ScaledDotProductAttention(feature_dims)  # 点积attn 来做fusion 运算
 
-    def forward(self, xx, record_len, normalized_affine_matrix):
+    def forward(self, xx, record_len, normalized_affine_matrix):  # normalized_affine_matrix变换矩阵
         _, C, H, W = xx.shape
         B, L = normalized_affine_matrix.shape[:2]
         split_x = regroup(xx, record_len)

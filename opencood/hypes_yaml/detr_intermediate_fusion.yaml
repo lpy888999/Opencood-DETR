@@ -1,0 +1,146 @@
+name: detr_intermediate_fusion
+
+yaml_parser: "load_bev_params"
+root_dir: "opv2v_data_dumping/train"
+validate_dir: "opv2v_data_dumping/validate"
+train_params:
+  batch_size: &batch_size 2
+  epoches: 10
+  eval_freq: 1
+  save_freq: 1
+fusion:
+  core_method: 'IntermediateFusionDataset' # LateFusionDataset, EarlyFusionDataset, IntermediateFusionDataset supported
+  args: []
+
+# preprocess-related
+preprocess:
+  # options: BasePreprocessor, VoxelPreprocessor, BevPreprocessor
+  core_method: 'BevPreprocessor'
+  args:
+    res: &res 0.2 # discretization resolusion
+    downsample_rate: &downsample_rate 4 # pixor downsample ratio
+  # lidar range for each individual cav.
+  cav_lidar_range: &cav_lidar [-160, -40, -3, 160, 40, 1] # must be divisible by 16
+
+data_augment: []
+
+# anchor box related
+postprocess:
+  core_method: 'BevPostprocessor' # VoxelPostprocessor, BevPostprocessor supported
+  nms_thresh: 0.15
+  anchor_args:
+    cav_lidar_range: *cav_lidar
+    res: *res
+    downsample_rate: *downsample_rate # pixor downsample ratio
+  target_args:
+    score_threshold: 0.7
+
+
+  order: 'lwh' # hwl or lwh
+  max_num: 100 # maximum number of objects in a single frame. use this number to make sure different frames has the same dimension in the same batch
+
+# model related
+model:
+  core_method: detr
+  args:
+    use_bn: True
+    decode: False
+    num_classes: 1 # 需要修改
+    lr: 0.0001
+    lr_backbone: 1e-05
+    batch_size: 2
+    weight_decay: 0.0001
+    epochs: 300
+    lr_drop: 200
+    clip_max_norm: 0.1
+    frozen_weights: null
+    backbone: resnet50
+    dilation: false
+    position_embedding: sine
+    enc_layers: 6
+    dec_layers: 6
+    dim_feedforward: 2048
+    hidden_dim: 256
+    dropout: 0.1
+    nheads: 8
+    num_queries: 100
+    pre_norm: false
+    masks: false
+    aux_loss: false
+    set_cost_class: 1
+    set_cost_bbox: 5
+    set_cost_giou: 0
+    mask_loss_coef: 1
+    dice_loss_coef: 1
+    bbox_loss_coef: 5 #5
+    giou_loss_coef: 0
+    eos_coef: 0.1
+    remove_difficult: false
+    output_dir: ""
+    device: cuda
+    seed: 42
+    resume: ""
+    start_epoch: 0
+    eval: false
+    num_workers: 2
+    world_size: 1
+    dist_url: env://
+
+
+loss:
+  core_method: detr_loss
+  args:
+    alpha: 1.0
+    beta: 1.0
+    num_classes: 1 # 需要修改
+    lr: 0.0001
+    lr_backbone: 1e-05
+    batch_size: 2
+    weight_decay: 0.0001
+    epochs: 300
+    lr_drop: 200
+    clip_max_norm: 0.1
+    frozen_weights: null
+    backbone: resnet50
+    dilation: false
+    position_embedding: sine
+    enc_layers: 6
+    dec_layers: 6
+    dim_feedforward: 2048
+    hidden_dim: 256
+    dropout: 0.1
+    nheads: 8
+    num_queries: 100
+    pre_norm: false
+    masks: false
+    aux_loss: false
+    set_cost_class: 1
+    set_cost_bbox: 5
+    set_cost_giou: 0
+    mask_loss_coef: 1
+    dice_loss_coef: 1
+    bbox_loss_coef: 5
+    giou_loss_coef: 0
+    eos_coef: 0.1
+    remove_difficult: false
+    output_dir: ""
+    device: cuda
+    seed: 42
+    resume: ""
+    start_epoch: 0
+    eval: false
+    num_workers: 2
+    world_size: 1
+    dist_url: env://
+
+
+optimizer:
+  core_method: AdamW
+  lr: 0.001
+  args:
+    eps: 1e-10
+    weight_decay: 1e-4
+
+lr_scheduler:
+  core_method: exponential #step, multistep and Exponential support
+  gamma: 0.99

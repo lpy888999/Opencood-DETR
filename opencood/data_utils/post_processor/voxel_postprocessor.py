@@ -25,7 +25,7 @@ class VoxelPostprocessor(BasePostprocessor):
         super(VoxelPostprocessor, self).__init__(anchor_params, train)
         self.anchor_num = self.params['anchor_args']['num']
 
-    def generate_anchor_box(self):
+    def generate_anchor_box(self):  # 静态？
         W = self.params['anchor_args']['W']
         H = self.params['anchor_args']['H']
 

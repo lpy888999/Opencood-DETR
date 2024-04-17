@@ -585,7 +585,7 @@ def get_projection_length_for_vector_projection(a, b):
     return length
 
 
-def nms_rotated(boxes, scores, threshold):
+def nms_rotated(boxes, scores, threshold): # 从一组重叠的旋转框中选择最佳的框
     """Performs rorated non-maximum suppression and returns indices of kept
     boxes.
 

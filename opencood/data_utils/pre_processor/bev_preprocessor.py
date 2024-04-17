@@ -5,6 +5,7 @@
 
 """
 Convert lidar to bev
+bird’s eye view
 """
 
 import numpy as np
@@ -73,6 +74,7 @@ class BevPreprocessor(BasePreprocessor):
         bev_input_list = [
             x["bev_input"][np.newaxis, ...] for x in batch
         ]
+
         processed_batch = {
             "bev_input": torch.from_numpy(
                 np.concatenate(bev_input_list, axis=0))
@@ -95,8 +97,9 @@ class BevPreprocessor(BasePreprocessor):
             Updated lidar batch.
         """
         bev_input_list = [
-            x[np.newaxis, ...] for x in batch["bev_input"]
+            x[np.newaxis, ...] for x in batch["bev_input"] #(channels, height, width) 变为 (1, channels, height, width)
         ]
+
         processed_batch = {
             "bev_input": torch.from_numpy(
                 np.concatenate(bev_input_list, axis=0))

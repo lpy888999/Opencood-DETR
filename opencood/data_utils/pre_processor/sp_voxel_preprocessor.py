@@ -4,6 +4,7 @@
 
 """
 Transform points to voxels using sparse conv library
+voxel 体素
 """
 import sys
 
